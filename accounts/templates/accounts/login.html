@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Kirish — Timetable System{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Sidebar-siz sahifa uchun marginni nolga tushiramiz */
+    .main-wrapper {
+        margin-left: 0 !important;
+    }
+
+    .login-container {
+        min-height: 90vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .card {
+        border: none;
+        border-radius: 15px;
+        background: #ffffff;
+    }
+
+    /* Sizdagi .btn-primary (firuza) rangini ishlatamiz */
+    .btn-login {
+        background-color: #1abc9c !important;
+        color: white !important;
+        font-weight: 600;
+        padding: 12px;
+        border: none;
+        transition: 0.3s;
+    }
+
+    .btn-login:hover {
+        background-color: #16a085 !important;
+        box-shadow: 0 4px 15px rgba(26, 188, 156, 0.3);
+    }
+
+    .input-group-text {
+        background-color: #f8f9fa;
+        color: #2c3e50;
+        border-right: none;
+    }
+
+    .form-control {
+        border-left: none;
+        padding: 12px;
+    }
+
+    .form-control:focus {
+        border-color: #dee2e6;
+        box-shadow: none;
+    }
+
+    .brand-title {
+        color: #2c3e50;
+        font-weight: 700;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="col-xxl-4 col-xl-5 col-lg-6 col-md-8 col-sm-11">
+        
+        <div class="text-center mb-4">
+            <h3 class="brand-title">Timetable System</h3>
+            <p class="text-muted">Davom etish uchun tizimga kiring</p>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body p-4 p-md-5">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger border-0 small py-2">
+                            <i class="bi bi-exclamation-circle me-2"></i>
+                            {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <!-- Username -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Login</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-person"></i></span>
+                            <input type="text" name="username" class="form-control" placeholder="Username" required>
+                        </div>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-muted">Parol</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                            <input type="password" name="password" class="form-control" placeholder="Password" required>
+                        </div>
+                    </div>
+
+                    <!-- Remember me -->
+                    <div class="mb-4 d-flex justify-content-between">
+                        <div class="form-check">
+                            <input type="checkbox" name="remember_me" class="form-check-input" id="remMe">
+                            <label class="form-check-label small text-muted" for="remMe">Eslab qolish</label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-login w-100 rounded-3">
+                        Tizimga kirish
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

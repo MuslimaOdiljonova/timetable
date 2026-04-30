@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Reports Inbox{% endblock %}
+{% block page_title %}Reports Inbox{% endblock %}
+
+{% block content %}
+
+<!-- Filters -->
+<form method="get" class="d-flex gap-2 mb-4 flex-wrap">
+  <input name="q" value="{{ search }}"
+         class="form-control form-control-sm"
+         style="max-width:200px;"
+         placeholder="Search teacher...">
+  <select name="status" class="form-select form-select-sm" style="max-width:160px;">
+    <option value="">All statuses</option>
+    <option value="submitted" {% if status_filter == 'submitted' %}selected{% endif %}>
+      Pending
+    </option>
+    <option value="approved"  {% if status_filter == 'approved'  %}selected{% endif %}>
+      Approved
+    </option>
+    <option value="rejected"  {% if status_filter == 'rejected'  %}selected{% endif %}>
+      Rejected
+    </option>
+  </select>
+  <button class="btn btn-outline-secondary btn-sm">Filter</button>
+  <a href="{% url 'dekan:reports' %}"
+     class="btn btn-outline-secondary btn-sm">Clear</a>
+</form>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Teacher</th>
+          <th>Week</th>
+          <th>Submitted</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for report in reports %}
+          <tr>
+            <td class="fw-500">
+              {{ report.teacher.get_full_name|default:report.teacher.username }}
+              <div class="text-muted" style="font-size:11px;">
+                {{ report.teacher.department|default:"" }}
+              </div>
+            </td>
+            <td class="text-muted small">
+              {{ report.week_start|date:"d M" }} –
+              {{ report.week_end|date:"d M Y" }}
+            </td>
+            <td class="text-muted small">
+              {{ report.submitted_at|date:"d M Y, H:i" }}
+            </td>
+            <td>
+              <span class="badge badge-{{ report.status }} rounded-pill px-2">
+                {{ report.status }}
+              </span>
+            </td>
+            <td>
+              <a href="{% url 'dekan:report_detail' report.pk %}"
+                 class="btn btn-outline-{% if report.status == 'submitted' %}primary{% else %}secondary{% endif %} btn-sm">
+                {% if report.status == 'submitted' %}Review{% else %}View{% endif %}
+              </a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5" class="text-muted text-center py-4">
+              No reports found.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

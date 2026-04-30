@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Edit Slot{% endblock %}
+{% block page_title %}Edit slot — {{ date|date:"d M Y" }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+
+    <!-- Default reference -->
+    <div class="card mb-3" style="border-left: 3px solid var(--accent) !important;">
+      <div class="card-body py-2 px-3">
+        <span class="text-muted small">Default:</span>
+        <span class="ms-2 fw-500">{{ default.subject }}</span>
+        <span class="text-muted small ms-2">
+          {{ default.time_slot }} · Room {{ default.room }} · {{ default.group }}
+        </span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        Slot {{ actual.slot_number }} — {{ date|date:"l, d M Y" }}
+      </div>
+      <div class="card-body p-4">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% for field in form %}
+            <div class="mb-3">
+              <label class="form-label small text-muted">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}
+                <div class="text-danger small mt-1">{{ field.errors }}</div>
+              {% endif %}
+            </div>
+          {% endfor %}
+          <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-primary btn-sm">
+              <i class="bi bi-check2"></i> Save
+            </button>
+            <a href="javascript:history.back()"
+               class="btn btn-outline-secondary btn-sm">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

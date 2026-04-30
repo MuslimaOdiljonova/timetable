@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Report — {{ report.teacher.get_full_name }}{% endblock %}
+{% block page_title %}Report review{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+  <div>
+    <div class="fw-500">
+      {{ report.teacher.get_full_name|default:report.teacher.username }}
+    </div>
+    <div class="text-muted small">
+      {{ report.week_start|date:"d M" }} –
+      {{ report.week_end|date:"d M Y" }}
+      &nbsp;·&nbsp;
+      Submitted {{ report.submitted_at|date:"d M Y, H:i" }}
+    </div>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <span class="badge badge-{{ report.status }} rounded-pill px-3 py-2">
+      {{ report.status }}
+    </span>
+    <a href="{% url 'dekan:reports' %}"
+       class="btn btn-outline-secondary btn-sm">← Back</a>
+  </div>
+</div>
+
+<!-- Timetable entries grouped by day -->
+{% for day_date, slots in days.items %}
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between">
+      <span>{{ day_date|date:"l, d M Y" }}</span>
+      <span class="text-muted small">{{ slots|length }} slot{{ slots|length|pluralize }}</span>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0">
+        <thead>
+          <tr>
+            <th>Slot</th>
+            <th>Time</th>
+            <th>Subject</th>
+            <th>Room</th>
+            <th>Group</th>
+            <th>Status</th>
+            <th>Teacher note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in slots %}
+            <tr>
+              <td class="text-muted">{{ entry.slot_number }}</td>
+              <td class="text-muted small">{{ entry.time_slot }}</td>
+              <td class="fw-500">{{ entry.subject }}</td>
+              <td class="text-muted small">{{ entry.room|default:"—" }}</td>
+              <td class="text-muted small">{{ entry.group|default:"—" }}</td>
+              <td>
+                <span class="badge badge-{{ entry.status }} rounded-pill px-2"
+                      style="font-size:10px;">
+                  {{ entry.status }}
+                </span>
+              </td>
+              <td class="text-muted small">
+                {{ entry.comment|default:"—" }}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% empty %}
+  <p class="text-muted">No entries in this report.</p>
+{% endfor %}
+
+<!-- Review panel -->
+{% if report.status == 'submitted' %}
+  <div class="card mt-4" style="border-top: 3px solid var(--accent) !important;">
+    <div class="card-header">Review this report</div>
+    <div class="card-body">
+      <form method="post" action="{% url 'dekan:report_review' report.pk %}">
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label class="form-label small text-muted">Decision</label>
+          <div class="d-flex gap-4">
+            <div class="form-check">
+              <input class="form-check-input" type="radio"
+                     name="action" value="approved" id="action-approve" checked>
+              <label class="form-check-label" for="action-approve">
+                Approve
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio"
+                     name="action" value="rejected" id="action-reject">
+              <label class="form-check-label" for="action-reject">
+                Reject
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small text-muted">
+            Note to teacher (optional)
+          </label>
+          <textarea name="note" class="form-control form-control-sm"
+                    rows="2"
+                    placeholder="Feedback or reason for rejection..."></textarea>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary btn-sm">
+            Submit review
+          </button>
+          <a href="{% url 'dekan:reports' %}"
+             class="btn btn-outline-secondary btn-sm">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+{% elif report.dekan_note %}
+  <div class="alert alert-warning mt-3 small">
+    <strong>Your note:</strong> {{ report.dekan_note }}
+  </div>
+{% endif %}
+
+{% endblock %}

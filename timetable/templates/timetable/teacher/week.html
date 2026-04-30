@@ -1,0 +1,316 @@
+  {% extends "base.html" %}
+  {% block title %}{{ month_name }} {{ year }} — Week {{ week_number }}{% endblock %}
+  {% block page_title %}{{ month_name }} {{ year }}{% endblock %}
+
+  {% block extra_css %}
+  <style>
+    .week-nav .btn { min-width: 90px; }
+    .slot-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 6px;
+      background: var(--bg-card);
+      transition: box-shadow 0.15s;
+    }
+    .slot-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+    .slot-card.is-confirmed { border-left: 3px solid #1a9e60; }
+    .slot-card.is-filled    { border-left: 3px solid #4f6ef2; }
+    .slot-card.is-default   { border-left: 3px solid #ccc; }
+    .slot-actions { display: none; }
+    .slot-card:hover .slot-actions { display: flex; }
+    .day-col { min-width: 160px; vertical-align: top; padding: 10px 8px; }
+    .red-day-cell {
+      background: #fff5f5;
+      border-radius: 8px;
+      padding: 12px;
+      color: #c0392b;
+      font-size: 12px;
+      text-align: center;
+    }
+    .progress { height: 5px; border-radius: 3px; }
+    .week-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+    .week-pill.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .week-pill:hover:not(.active) {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    .week-header {
+      position: relative;
+      z-index: 20;
+    }
+
+    .week-header form {
+      margin: 0;
+    }
+
+    .week-header button {
+      position: relative;
+      z-index: 30;
+    }
+  </style>
+  {% endblock %}
+
+  {% block content %}
+  <div class="week-header d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+
+    <!-- LEFT: navigation -->
+    <div class="week-nav d-flex gap-2">
+      {% if prev_week %}
+        <a href="{% url 'teacher:week' year month prev_week %}"
+          class="btn btn-outline-secondary btn-sm">
+          ← Week {{ prev_week }}
+        </a>
+      {% endif %}
+      {% if next_week %}
+        <a href="{% url 'teacher:week' year month next_week %}"
+          class="btn btn-outline-secondary btn-sm">
+          Week {{ next_week }} →
+        </a>
+      {% endif %}
+    </div>
+
+    <!-- RIGHT: confirm button -->
+    <form method="post"
+          action="{% url 'teacher:confirm_week' year month week_number %}">
+      {% csrf_token %}
+      <button type="submit"
+              class="btn btn-success btn-sm">
+        <i class="bi bi-check2-all"></i> Confirm whole week
+      </button>
+    </form>
+
+  </div>
+
+
+
+  <!-- Progress bar -->
+  <div class="card mb-4">
+    <div class="card-body py-3 px-4">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span class="small text-muted">
+          Week {{ week_number }} completion
+        </span>
+        <span class="small fw-500">
+          {{ stats.filled|add:stats.confirmed }}/{{ stats.total }} slots
+          &nbsp;·&nbsp; {{ stats.percent }}%
+        </span>
+      </div>
+      <div class="progress">
+        <div class="progress-bar bg-primary"
+            style="width: {{stats.percent }} %"></div>
+      </div>
+      <div class="d-flex gap-3 mt-2">
+        <span class="small text-muted">
+          <span class="badge-confirmed badge rounded-pill px-2">{{ stats.confirmed }}</span>
+          confirmed
+        </span>
+        <span class="small text-muted">
+          <span class="badge-filled badge rounded-pill px-2">{{ stats.filled }}</span>
+          filled
+        </span>
+        <span class="small text-muted">
+          <span class="badge-pending badge rounded-pill px-2">{{ stats.pending }}</span>
+          pending
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timetable grid -->
+  <div class="card mb-4">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-borderless mb-0">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border);">
+              {% for day in schedule %}
+                <th class="day-col px-3 py-2">
+                  <div class="fw-500">{{ day.weekday }}</div>
+                  <div class="text-muted" style="font-size:11px;">
+                    {{ day.date|date:"d M" }}
+                  </div>
+                </th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              {% for day in schedule %}
+                <td class="day-col">
+
+                  {% if day.is_red %}
+                    <div class="red-day-cell">
+                      <i class="bi bi-x-circle mb-1 d-block" style="font-size:18px;"></i>
+                      {{ day.red_reason|default:"Holiday" }}
+                    </div>
+
+                  {% elif not day.slots %}
+                    <p class="text-muted small text-center py-3">No classes</p>
+
+                  {% else %}
+                    {% for slot in day.slots %}
+                      <div class="slot-card is-{{ slot.status }}">
+
+                        <!-- Slot header -->
+                        <div class="d-flex justify-content-between align-items-start">
+                          <span class="small fw-500">{{ slot.time_slot }}</span>
+                          <span class="badge
+                            {% if slot.status == 'confirmed' %}badge-confirmed
+                            {% elif slot.status == 'filled'  %}badge-filled
+                            {% else %}badge-pending{% endif %}
+                            rounded-pill px-2" style="font-size:10px;">
+                            {{ slot.status }}
+                          </span>
+                        </div>
+
+                        <!-- Subject / room -->
+                        <div class="mt-1 fw-500" style="font-size:13px;">
+                          {{ slot.subject }}
+                        </div>
+                        <div class="text-muted" style="font-size:11px;">
+                          {% if slot.room %}Room {{ slot.room }}{% endif %}
+                          {% if slot.group %} · {{ slot.group }}{% endif %}
+                        </div>
+
+                        <!-- Teacher comment -->
+                        {% if slot.comment %}
+                          <div class="text-muted mt-1" style="font-size:11px;font-style:italic;">
+                            "{{ slot.comment }}"
+                          </div>
+                        {% endif %}
+
+                        <!-- Dekan note -->
+                        {% if slot.dekan_note %}
+                          <div class="mt-1 p-1 rounded"
+                              style="background:#fff4e5;font-size:11px;color:#c07a00;">
+                            <i class="bi bi-chat-left-text"></i>
+                            {{ slot.dekan_note }}
+                          </div>
+                        {% endif %}
+
+                        <!-- Actions (visible on hover) -->
+                        {% if slot.editable %}
+                          <div class="slot-actions gap-1 mt-2">
+                            <a href="{% url 'teacher:slot_edit' slot.default_id day.date|date:'Y-m-d' %}"
+                              class="btn btn-outline-primary btn-sm py-0 px-2"
+                              style="font-size:11px;">
+                              <i class="bi bi-pencil"></i> Edit
+                            </a>
+                            <button type="button"
+                                    class="btn btn-outline-success btn-sm py-0 px-2 confirm-btn"
+                                    data-url="{% url 'teacher:slot_confirm_quick' slot.default_id day.date|date:'Y-m-d' %}">
+                              <i class="bi bi-check2"></i> Confirm
+                            </button>
+                          </div>
+                        {% endif %}
+
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+
+                </td>
+              {% endfor %}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Submit report -->
+  <div class="card">
+    <div class="card-body px-4 py-3">
+      {% if existing_report %}
+        <div class="d-flex align-items-center justify-content-between">
+          <span class="text-muted small">
+            Report submitted —
+            <span class="badge-{{ existing_report.status }} badge rounded-pill px-2">
+              {{ existing_report.status }}
+            </span>
+          </span>
+          <a href="{% url 'teacher:report_detail' existing_report.pk %}"
+            class="btn btn-outline-secondary btn-sm">
+            View report
+          </a>
+        </div>
+      {% else %}
+        <div class="d-flex align-items-end gap-3 flex-wrap">
+          <form method="post"
+                action="{% url 'teacher:report_submit' year month week_number %}"
+                class="d-flex align-items-end gap-2 flex-wrap">
+            {% csrf_token %}
+            <div>
+              <label class="form-label small text-muted mb-1">Submit to dekan</label>
+              {{ submit_form.dekan }}
+            </div>
+            <div style="min-width:200px;">
+              <label class="form-label small text-muted mb-1">Note (optional)</label>
+              {{ submit_form.note }}
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm"
+                    {% if stats.percent == 0 %}disabled{% endif %}>
+              <i class="bi bi-send"></i> Submit report
+            </button>
+          </form>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <script>
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll(".confirm-btn").forEach(btn => {
+    btn.addEventListener("click", function () {
+      const url = this.dataset.url;
+
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": "{{ csrf_token }}",
+          "X-Requested-With": "XMLHttpRequest"
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          const card = btn.closest(".slot-card");
+
+          // turn green
+          card.classList.remove("is-pending", "is-filled");
+          card.classList.add("is-confirmed");
+
+          // update badge
+          const badge = card.querySelector(".badge");
+          badge.innerText = "confirmed";
+          badge.classList.remove("badge-filled", "badge-pending");
+          badge.classList.add("badge-confirmed");
+
+          // disable button
+          btn.disabled = true;
+
+          // 🔥 redirect ONLY when full week done
+          if (data.week_done) {
+            window.location.reload(); // or redirect anywhere you want
+          }
+        }
+      });
+    });
+  });
+});
+</script>
+  {% endblock %}

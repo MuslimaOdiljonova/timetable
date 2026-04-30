@@ -1,0 +1,169 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Timetable System{% endblock %}</title>
+
+    <!-- Bootstrap CSS & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        body {
+            background-color: #f5f7fa;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* --- SIDEBAR STYLE --- */
+        #slim-sidebar {
+            width: 70px;
+            background-color: #2c3e50; /* Navbaringiz rangi bilan bir xil */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 20px;
+            position: fixed;
+            height: 100vh;
+            z-index: 1000;
+            transition: all 0.3s;
+        }
+
+        #slim-sidebar .nav-link {
+            color: #ecf0f1;
+            padding: 15px 0;
+            width: 100%;
+            text-align: center;
+            font-size: 1.4rem;
+            transition: 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        #slim-sidebar .nav-link:hover {
+            color: #1abc9c;
+            background-color: rgba(255,255,255,0.05);
+        }
+
+        #slim-sidebar .nav-link.active {
+            color: #1abc9c;
+            border-left: 3px solid #1abc9c;
+            background-color: rgba(26, 188, 156, 0.1);
+        }
+
+        /* --- MAIN CONTENT ADJUSTMENT --- */
+        .main-wrapper {
+            flex-grow: 1;
+            margin-left: 70px; /* Sidebar kengligi qadar joy tashlaydi */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .navbar {
+            background-color: #2c3e50;
+            padding: 0.8rem 1rem;
+        }
+
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        footer {
+            margin-top: auto;
+            padding: 20px;
+            text-align: center;
+            color: #888;
+        }
+
+        /* Tooltip style */
+        .nav-link[title]:hover::after {
+            content: attr(title);
+            position: absolute;
+            left: 75px;
+            background: #34495e;
+            color: white;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            white-space: nowrap;
+            z-index: 1001;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- SLIM SIDEBAR -->
+{% if user.is_authenticated %}
+<nav id="slim-sidebar">
+
+    <!-- Teacher Icons -->
+    {% if user.role == 'teacher' %}
+    <a class="nav-link {% if request.resolver_match.url_name == 'timetable' %}active{% endif %}" 
+       href="" title="My Schedule">
+        <i class="bi bi-calendar3"></i>
+    </a>
+    {% endif %}
+
+    <!-- Dekan Icons -->
+    {% if user.role == 'dekan' %}
+    <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" 
+       href="{% url 'dekan:dashboard' %}" title="Dashboard">
+        <i class="bi bi-speedometer2"></i>
+    </a>
+    <a class="nav-link {% if request.resolver_match.url_name == 'teachers' %}active{% endif %}" 
+       href="{% url 'dekan:teachers' %}" title="Teachers List">
+        <i class="bi bi-people-fill"></i>
+    </a>
+    {% endif %}
+
+    <!-- Admin Icons -->
+    {% if user.is_superuser %}
+    <a class="nav-link" href="/admin/" title="Admin Panel">
+        <i class="bi bi-shield-lock-fill"></i>
+    </a>
+    {% endif %}
+
+    <!-- Bottom Icons -->
+    <div class="mt-auto mb-3 w-100">
+        <a class="nav-link text-danger" href="{% url 'accounts:logout' %}" title="Logout">
+            <i class="bi bi-box-arrow-left"></i>
+        </a>
+    </div>
+</nav>
+{% endif %}
+
+<div class="main-wrapper">
+    <!-- TOP NAVBAR (Simple version) -->
+    <nav class="navbar shadow-sm">
+        <div class="container-fluid px-4">
+            <span class="navbar-brand mb-0 h1">Timetable System</span>
+            <div class="text-white small">
+                <i class="bi bi-person-circle me-1"></i> {{ user.username }}
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <div class="container-fluid p-4">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+        <small>© 2026 Timetable System</small>
+    </footer>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_js %}{% endblock %}
+
+</body>
+</html>

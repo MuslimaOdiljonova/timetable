@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Hisobot — {{ report.teacher.get_full_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Status ranglari */
+    .badge-submitted { background-color: #e3f2fd; color: #0d6efd; border: 1px solid #0d6efd; }
+    .badge-approved { background-color: #e8f5e9; color: #198754; border: 1px solid #198754; }
+    .badge-rejected { background-color: #ffebee; color: #dc3545; border: 1px solid #dc3545; }
+    
+    .report-card { border-radius: 12px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .day-group-header { 
+        background: #f8f9fa; 
+        border-radius: 8px 8px 0 0; 
+        border-bottom: 2px solid var(--accent-soft);
+        padding: 12px 20px;
+    }
+    .slot-row:hover { background-color: #fcfcfc; }
+    .teacher-note-bubble {
+        background: #f0f2f5;
+        padding: 4px 10px;
+        border-radius: 14px;
+        font-size: 0.85rem;
+        display: inline-block;
+    }
+    .review-section {
+        background: #ffffff;
+        border-left: 5px solid var(--accent);
+        border-radius: 12px;
+    }
+    .back-btn { transition: transform 0.2s; }
+    .back-btn:hover { transform: translateX(-3px); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header: Ma'lumot va Actionlar -->
+    <div class="row align-items-center mb-4">
+        <div class="col-md-8">
+            <nav aria-label="breadcrumb">
+            </nav>
+            <h3 class="fw-bold mb-1">
+                {{ report.teacher.get_full_name|default:report.teacher.username }}
+            </h3>
+            <div class="text-muted d-flex align-items-center gap-3">
+                <span><i class="bi bi-calendar3"></i> {{ report.week_start|date:"d M" }} – {{ report.week_end|date:"d M, Y" }}</span>
+                <span><i class="bi bi-clock-history"></i> {{ report.submitted_at|date:"d M, H:i" }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ma'lumotlar jadvali -->
+    <div class="row">
+        <div class="col-lg-9">
+            {% for day_date, slots in days.items %}
+            <div class="card report-card mb-4">
+                <div class="day-group-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold text-dark">
+                        <i class="bi bi-calendar-check text-primary me-2"></i>
+                        {{ day_date|date:"l, d-F" }}
+                    </h6>
+                    <span class="badge bg-white text-dark border rounded-pill">{{ slots|length }} ta dars</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4" style="width: 80px;">Sura</th>
+                                <th style="width: 120px;">Vaqt</th>
+                                <th>Fan va Guruh</th>
+                                <th>O'qituvchi izohi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in slots %}
+                            <tr class="slot-row">
+                                <td class="ps-4">
+                                    <span class="fw-bold text-primary">{{ entry.slot_number }}</span>
+                                </td>
+                                <td><small class="text-muted">{{ entry.time_slot }}</small></td>
+                                <td>
+                                    <div class="fw-bold">{{ entry.subject }}</div>
+                                </td>
+                                <td>
+                                    {% if entry.comment %}
+                                    <div class="teacher-note-bubble text-dark">
+                                        <i class="bi bi-chat-dots me-1"></i> {{ entry.comment }}
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-5">
+                <i class="bi bi-clipboard-x display-1 text-muted"></i>
+                <p class="mt-3 fs-5 text-muted">Hisobotda darslar mavjud emas.</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Sidebar: Review Panel -->
+        <div class="col-lg-3">
+            <div class="sticky-top" style="top: 20px;">
+                {% if report.status == 'submitted' %}
+                <div class="card report-card review-section shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title fw-bold mb-3">Qaror qabul qilish</h5>
+                        <form method="post" action="{% url 'dekan:report_review' report.pk %}">
+                            {% csrf_token %}
+                            
+                            <div class="btn-group w-100 mb-3" role="group">
+                                <input type="radio" class="btn-check" name="action" value="approved" id="btn-approve" autocomplete="off" checked>
+                                <label class="btn btn-outline-success border-2" for="btn-approve">
+                                    <i class="bi bi-check-circle"></i> Tasdiqlash
+                                </label>
+
+                                <input type="radio" class="btn-check" name="action" value="rejected" id="btn-reject" autocomplete="off">
+                                <label class="btn btn-outline-danger border-2" for="btn-reject">
+                                    <i class="bi bi-x-circle"></i> Rad etish
+                                </label>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Izoh (ixtiyoriy)</label>
+                                <textarea name="note" class="form-control" rows="4" 
+                                          placeholder="O'qituvchiga ko'rsatma yoki rad etish sababi..."></textarea>
+                            </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="card report-card bg-light border-0">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-info-circle fs-2 text-muted mb-2"></i>
+                        <h6 class="fw-bold">Hisobot yopiq</h6>
+                        <p class="small text-muted mb-0">Ko'rib chiqilgan.</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

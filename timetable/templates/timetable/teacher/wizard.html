@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    /* Jadvalning umumiy strukturasi */
+    .edu-container {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        overflow-x: auto;
+    }
+
+    .edu-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed; /* Barcha ustunlarni tekislaydi */
+        min-width: 1100px;
+    }
+
+    .edu-table th, .edu-table td {
+        border: 1px solid #dee2e6;
+        padding: 8px;
+        vertical-align: top;
+    }
+
+    /* Ustun o'lchamlari */
+    .day-cell { 
+        width: 80px; 
+        background: #f8f9fa; 
+        text-align: center; 
+        font-weight: bold; 
+    }
+    
+    .time-header {
+        background: #f8f9fa;
+        text-align: center;
+        font-size: 0.85rem;
+        padding: 10px 5px;
+    }
+
+    /* Dars kartochkasi */
+    .lesson-box {
+        background: #f0f7ff;
+        border-left: 4px solid #4f6ef2;
+        padding: 6px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        min-height: 100px;
+        display: flex;
+        flex-direction: column;
+        transition: all 0.2s;
+    }
+
+    .lesson-box.is-confirmed {
+        background: #eafaf1;
+        border-left-color: #1a9e60;
+    }
+
+    .lesson-actions {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 5px;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        padding-bottom: 4px;
+    }
+
+    .act-btn {
+        border: 1px solid #ccc;
+        background: #fff;
+        padding: 2px 5px;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 14px;
+        color: #555;
+    }
+
+    .act-btn:hover { background: #f0f0f0; }
+
+    .lesson-subject {
+        font-weight: bold;
+        color: #333;
+        display: block;
+        margin-bottom: 4px;
+        line-height: 1.2;
+    }
+
+    .lesson-footer {
+        margin-top: auto;
+        font-size: 0.7rem;
+        color: #6c757d;
+        line-height: 1.1;
+    }
+
+    /* Navigatsiya */
+    .nav-tabs .nav-link { font-weight: 500; color: #666; }
+    .nav-tabs .nav-link.active { color: #0d6efd; border-bottom: 3px solid #0d6efd; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <!-- Hafta Tablari -->
+    <ul class="nav nav-tabs mb-3" id="wizardTab" role="tablist">
+        {% for week in wizard_data %}
+        <li class="nav-item">
+            <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                    data-bs-toggle="tab" data-bs-target="#week-{{ week.number }}">
+                {{ week.number }}-Hafta
+            </button>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <form id="mainWizardForm" method="POST" action="">
+        {% csrf_token %}
+        <div class="tab-content">
+            {% for week in wizard_data %}
+            <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="week-{{ week.number }}">
+                <div class="edu-container shadow-sm">
+                    <table class="edu-table">
+                        <thead>
+                            <tr>
+                                <th class="day-cell">Sana</th>
+                                {% for n in "12345678" %}
+                                <th class="time-header">Para {{ n }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for day in week.days %}
+                            <tr {% if not day.is_current_month %}style="opacity: 0.5; background: #fafafa;"{% endif %}>
+                                <td class="day-cell">
+                                    <div class="text-uppercase">{{ day.weekday_name|slice:":2" }}</div>
+                                    <small class="text-muted">{{ day.date|date:"d.m" }}</small>
+                                </td>
+                                
+                                {% for n in "12345678" %}
+                                <td>
+                                    {% for slot in day.slots %}
+                                        {% if slot.slot_number|stringformat:"s" == n %}
+                                        <div class="lesson-box is-pending" id="box-{{ slot.id }}-{{ day.date|date:'Ymd' }}">
+                                            <div class="lesson-actions">
+                                                <a href="/teacher/edit/{{ slot.id }}/{{ day.date|date:'Y-m-d' }}/" class="act-btn">
+                                                    <i class="bi bi-pencil" style="color: #0d6efd;"></i>
+                                                </a>
+                                                <button type="button" class="act-btn confirm-single" data-target="box-{{ slot.id }}-{{ day.date|date:'Ymd' }}">
+                                                    <i class="bi bi-check-lg" style="color: #198754;"></i>
+                                                </button>
+                                            </div>
+                                            
+                                            <span class="lesson-subject">{{ slot.subject }}</span>
+                                            
+                                            <div class="lesson-footer">
+                                                <div><i class="bi bi-geo-alt"></i> {{ slot.room }}</div>
+                                                <div><i class="bi bi-people"></i> {{ slot.group }}</div>
+                                            </div>
+                                            <!-- Hidden inputs for form submit -->
+                                            <input type="hidden" name="slot_id" value="{{ slot.id }}">
+                                            <input type="hidden" name="date" value="{{ day.date|date:'Y-m-d' }}">
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-3 text-end">
+                    <button type="button" class="btn btn-outline-primary confirm-week-btn">
+                        <i class="bi bi-check-all"></i> Ushbu haftani tasdiqlash
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Yakka darsni tasdiqlash
+    document.querySelectorAll('.confirm-single').forEach(btn => {
+        btn.onclick = function() {
+            const targetId = this.getAttribute('data-target');
+            document.getElementById(targetId).classList.add('is-confirmed');
+            this.disabled = true;
+        };
+    });
+
+    // Butun haftani tasdiqlash
+    document.querySelectorAll('.confirm-week-btn').forEach(btn => {
+        btn.onclick = function() {
+            const currentPane = this.closest('.tab-pane');
+            currentPane.querySelectorAll('.lesson-box').forEach(box => {
+                box.classList.add('is-confirmed');
+            });
+        };
+    });
+});
+</script>
+{% endblock %}
