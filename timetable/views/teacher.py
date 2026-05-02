@@ -1,95 +1,139 @@
 from datetime import date, datetime
-from django.shortcuts import render, redirect, get_object_or_404
+import calendar
+
+from django.shortcuts import render, get_object_or_404
 from django.views import View
-from django.utils.decorators import method_decorator
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.http import JsonResponse
 from django.utils import timezone
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
 
 from accounts.decorators import teacher_required
 from timetable.models import DefaultTimetable, ActualTimetable, Report
 from timetable.forms import ActualTimetableForm, ReportSubmitForm
-from timetable.utils import (
-    get_monthly_weeks, get_week_by_number, get_week_count, 
-    get_current_week_number, get_week_schedule
-)
-
+from timetable.utils import get_monthly_weeks
+from timetable.models import RedDay
+def is_red_day(date_obj):
+    return RedDay.objects.filter(date=date_obj).exists()
 decorators = [login_required, teacher_required]
 
-from django.shortcuts import render, redirect
-from django.views import View
-from django.db import connection
-from datetime import date, timedelta
-import calendar
 
-from django.shortcuts import render
-from django.views import View
-from django.db import connection
-from datetime import date, timedelta
-import calendar
-
+# =========================
+# WIZARD VIEW (MAIN PAGE)
+# =========================
 class TeacherWizardView(View):
-    template_name = 'timetable/teacher/wizard.html'
+    template_name = "timetable/teacher/wizard.html"
 
     def get(self, request, year=None, month=None):
+
         today = date.today()
         year = year or today.year
         month = month or today.month
-        
-        # 1. SQL orqali default timetableni fetch qilish
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT id, day_of_week, slot_number, subject, room, `group`, time_slot 
-                FROM timetable_defaulttimetable 
-                WHERE teacher_id = %s AND is_active = 1
-            """, [request.user.id])
-            
-            # Fetchall va lug'atga o'tkazish
-            columns = [col[0] for col in cursor.description]
-            defaults = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
-        # 2. Oyning barcha haftalarini va sanalarini hisoblash
+        # -------------------------
+        # DEFAULT RULES (WEEKLY)
+        # -------------------------
+        defaults = DefaultTimetable.objects.filter(
+            teacher=request.user,
+            is_active=True
+        )
+
+        # Detect weekday system (0–6 or 1–7)
+        USE_ISO = defaults.exists() and defaults.first().day_of_week == 1
+
+        rules_by_day = {}
+        for r in defaults:
+            rules_by_day.setdefault(r.day_of_week, []).append(r)
+
+        # -------------------------
+        # ACTUAL OVERRIDES (PER DATE)
+        # -------------------------
+        actual = ActualTimetable.objects.filter(
+            teacher=request.user,
+            date__year=year,
+            date__month=month
+        )
+
+        actual_map = {
+            (a.date, a.slot_number): a for a in actual
+        }
+
+        # -------------------------
+        # CALENDAR
+        # -------------------------
         cal = calendar.Calendar(firstweekday=0)
         month_weeks = cal.monthdatescalendar(year, month)
-        
+
         wizard_data = []
+
         for i, week in enumerate(month_weeks):
             week_days = []
+
             for day_date in week:
-                # Faqat dushanbadan shanbagacha (0-5) darslarni ko'rsatish
-                day_num = day_date.weekday()
-                day_slots = [s for s in defaults if s['day_of_week'] == day_num]
-                
+
+                weekday = day_date.weekday()
+                if USE_ISO:
+                    weekday += 1
+
+                rules = rules_by_day.get(weekday, [])
+
+                day_slots = []
+
+                for rule in rules:
+                    override = actual_map.get((day_date, rule.slot_number))
+
+                    day_slots.append({
+                        "default_id": rule.id,  # ALWAYS preserved
+                        "slot_number": rule.slot_number,
+
+                        "subject": override.subject if override else rule.subject,
+                        "room": override.room if override else rule.room,
+                        "group": override.group if override else rule.group,
+                        "time_slot": rule.time_slot,
+                        "status": override.status if override else "default",
+                        "editable": True
+                    })
+
                 week_days.append({
-                    'date': day_date,
-                    'weekday_name': day_date.strftime('%A'),
-                    'slots': day_slots,
-                    'is_current_month': day_date.month == month
+                    "date": day_date,
+                    "weekday_name": day_date.strftime("%A"),
+                    "slots": day_slots,
+                    "is_current_month": day_date.month == month
                 })
-            
+
             wizard_data.append({
-                'number': i + 1,
-                'days': week_days
+                "number": i + 1,
+                "days": week_days
             })
+        print("RULE:", rule.id)
+        return render(request, self.template_name, {
+            "year": year,
+            "month": month,
+            "month_name": calendar.month_name[month],
+            "wizard_data": wizard_data,
+        })
 
-        context = {
-            'year': year,
-            'month': month,
-            'month_name': calendar.month_name[month],
-            'wizard_data': wizard_data,
-        }
-        return render(request, self.template_name, context)
 
-
-@method_decorator(decorators, name='dispatch')
+# =========================
+# QUICK CONFIRM (WIZARD)
+# =========================
+@method_decorator(decorators, name="dispatch")
 class LessonQuickConfirmView(View):
-    """
-    Bitta darsni tezkor tasdiqlash (Green Line).
-    """
+
     def post(self, request, default_id, date_str):
+
         slot_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         default = get_object_or_404(DefaultTimetable, pk=default_id, teacher=request.user)
+        if is_red_day(slot_date):
+            return JsonResponse({
+                "success": False,
+                "message": "Cannot schedule lessons on a holiday"
+            })
+        if is_red_day(slot_date):
+            return JsonResponse({
+                "success": False,
+                "message": "Editing disabled on holidays"
+            }, status=400)
 
         actual, created = ActualTimetable.objects.update_or_create(
             teacher=request.user,
@@ -101,117 +145,175 @@ class LessonQuickConfirmView(View):
                 'time_slot': default.time_slot,
                 'group': default.group,
                 'room': default.room,
-                'status': 'confirmed', # Tezkor tasdiq yashil chiziq beradi
+                'lesson_type': default.lesson_type,  # ✅ HERE
+                'status': 'confirmed',
                 'filled_at': timezone.now()
             }
         )
+        print("DATE:", date_str)
+        print("DEFAULT_ID:", default_id)
+        print("FOUND DEFAULT:", default)
         return JsonResponse({'status': 'success', 'new_status': 'confirmed'})
 
-@method_decorator(decorators, name='dispatch')
+# =========================
+# EDIT LESSON
+# =========================
+@method_decorator(decorators, name="dispatch")
 class LessonEditView(View):
-    """
-    Darsni tahrirlash (Blue Line).
-    Tahrirlangan darslar keyinchalik 'confirmed' statusiga o'zgarmaydi.
-    """
-    def post(self, request, default_id, date_str):
-        slot_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        default = get_object_or_404(DefaultTimetable, pk=default_id, teacher=request.user)
-        
-        actual, _ = ActualTimetable.objects.get_or_create(
-            teacher=request.user, date=slot_date, slot_number=default.slot_number,
-            defaults={'default_entry': default, 'subject': default.subject}
+    def get(self, request, default_id, date_str):
+        slot_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+
+        default = get_object_or_404(
+            DefaultTimetable,
+            pk=default_id,
+            teacher=request.user
         )
-        
+
+        actual = ActualTimetable.objects.filter(
+            teacher=request.user,
+            date=slot_date,
+            slot_number=default.slot_number
+        ).first()
+
+        form = ActualTimetableForm(instance=actual)
+
+        return render(request, "timetable/teacher/edit_slot.html", {
+            "form": form,
+            "default": default,
+            "actual": actual,
+            "date": slot_date
+        })
+    def post(self, request, default_id, date_str):
+
+        slot_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+
+        default = get_object_or_404(
+            DefaultTimetable,
+            pk=default_id,
+            teacher=request.user
+        )
+
+        actual, _ = ActualTimetable.objects.get_or_create(
+            teacher=request.user,
+            date=slot_date,
+            slot_number=default.slot_number,
+            defaults={
+                "default_entry": default,
+                "subject": default.subject
+            }
+        )
+
         form = ActualTimetableForm(request.POST, instance=actual)
+
         if form.is_valid():
             lesson = form.save(commit=False)
-            lesson.status = 'edited' # Tahrirlangan ko'k chiziq beradi
+            lesson.status = "edited"
             lesson.filled_at = timezone.now()
             lesson.save()
-            return JsonResponse({'status': 'success', 'new_status': 'edited'})
-        return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
 
-@method_decorator(decorators, name='dispatch')
+            return JsonResponse({
+                "success": True,
+                "status": "edited"
+            })
+
+        return JsonResponse({"success": False, "errors": form.errors}, status=400)
+
+
+# =========================
+# BULK WEEK CONFIRM
+# =========================
+@method_decorator(decorators, name="dispatch")
 class BulkConfirmWeekView(View):
-    """
-    Butun haftani tasdiqlash.
-    Faqat 'pending' holatidagilarni 'confirmed' qiladi.
-    Avvaldan 'edited' (ko'k) bo'lganlarga tegmaydi.
-    """
+
     def post(self, request, year, month, week_num):
-        week_dates = get_week_by_number(year, month, week_num)
-        
-        updated_count = 0
+
+        week_dates = get_monthly_weeks(year, month)[week_num - 1]
+
+        updated = 0
+
         for day_date in week_dates:
+            if is_red_day(day_date):
+                continue
             defaults = DefaultTimetable.objects.filter(
-                teacher=request.user, 
-                day_of_week=day_date.weekday() + 1, 
+                teacher=request.user,
+                day_of_week=day_date.weekday() + 1,
                 is_active=True
             )
-            
+
             for d in defaults:
-                # Agar dars hali yaratilmagan bo'lsa yoki pending bo'lsa
-                actual, created = ActualTimetable.objects.get_or_create(
+
+                obj, created = ActualTimetable.objects.get_or_create(
                     teacher=request.user,
                     date=day_date,
                     slot_number=d.slot_number,
                     defaults={
-                        'default_entry': d,
-                        'subject': d.subject,
-                        'status': 'confirmed',
-                        'filled_at': timezone.now()
+                        "default_entry": d,
+                        "subject": d.subject,
+                        "room": d.room,
+                        'lesson_type': d.lesson_type,
+                        "group": d.group,
+                        "time_slot": d.time_slot,
+                        "status": "confirmed",
+                        "filled_at": timezone.now()
                     }
                 )
-                
-                # Agar dars avvaldan bor bo'lsa va faqat pending bo'lsa tasdiqlaymiz
-                if not created and actual.status == 'pending':
-                    actual.status = 'confirmed'
-                    actual.save()
-                    updated_count += 1
-                elif created:
-                    updated_count += 1
 
-        return JsonResponse({'status': 'success', 'updated': updated_count})
+                if not created and obj.status == "pending":
+                    obj.status = "confirmed"
+                    obj.save()
 
-@method_decorator(decorators, name='dispatch')
+                updated += 1
+
+        return JsonResponse({
+            "success": True,
+            "updated": updated
+        })
+
+
+# =========================
+# FINAL REPORT SUBMIT
+# =========================
+@method_decorator(decorators, name="dispatch")
 class FinalizeMonthlyReportView(View):
-    """
-    Wizard yakunida oylik hisobotni dekanga yuborish.
-    """
+
     def post(self, request, year, month):
+
         weeks = get_monthly_weeks(year, month)
         first_day = weeks[0][0]
         last_day = weeks[-1][-1]
 
-        # Tekshirish: Hamma darslar tasdiqlanganmi?
-        pending_exists = ActualTimetable.objects.filter(
+        pending = ActualTimetable.objects.filter(
             teacher=request.user,
             date__range=[first_day, last_day],
-            status='pending'
+            status="pending"
         ).exists()
 
-        if pending_exists:
-            messages.error(request, "Hisobot yuborishdan oldin barcha darslarni tasdiqlashingiz kerak.")
-            return redirect('teacher:wizard', year=year, month=month)
+        if pending:
+            return JsonResponse({
+                "success": False,
+                "message": "Confirm all lessons first"
+            })
 
         form = ReportSubmitForm(request.POST)
+
         if form.is_valid():
+
             entries = ActualTimetable.objects.filter(
                 teacher=request.user,
                 date__range=[first_day, last_day],
-                status__in=['confirmed', 'edited']
+                status__in=["confirmed", "edited"]
             )
-            
+
             report = Report.objects.create(
                 teacher=request.user,
-                dekan=form.cleaned_data['dekan'],
+                dekan=form.cleaned_data["dekan"],
                 week_start=first_day,
                 week_end=last_day,
-                status='submitted'
+                status="submitted"
             )
+
             report.entries.set(entries)
-            
-            messages.success(request, "Oylik hisobot dekanga muvaffaqiyatli yuborildi.")
-            return redirect('teacher:report_list')
-        
-        return redirect('teacher:wizard', year=year, month=month)
+
+            return JsonResponse({"success": True})
+
+        return JsonResponse({"success": False})

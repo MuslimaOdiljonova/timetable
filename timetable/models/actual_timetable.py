@@ -2,11 +2,18 @@ from django.db import models
 from django.conf import settings
 from .default_timetable import DefaultTimetable
 
+
 class ActualTimetable(models.Model):
     STATUS_CHOICES = [
         ('pending',   'Pending'),
         ('filled',    'Filled'),
         ('confirmed', 'Confirmed'),
+    ]
+
+    LESSON_TYPES = [
+        ('lecture', 'Lecture'),
+        ('seminar', 'Seminar'),
+        ('lab', 'Lab'),
     ]
 
     teacher = models.ForeignKey(
@@ -22,26 +29,34 @@ class ActualTimetable(models.Model):
         related_name='actual_entries'
     )
 
-    date        = models.DateField()               # specific calendar date
-    time_slot   = models.CharField(max_length=20)  # copied from default, editable
+    date        = models.DateField()
+    time_slot   = models.CharField(max_length=20)
     slot_number = models.PositiveSmallIntegerField()
-    subject     = models.CharField(max_length=200) # copied from default, editable
+    subject     = models.CharField(max_length=200)
     room        = models.CharField(max_length=50, blank=True)
-    group       = models.CharField(max_length=100, blank=True)
+    group       = models.CharField(max_length=100)
 
-    status      = models.CharField(
+    # ✅ ADD THIS FIELD
+    lesson_type = models.CharField(
+        max_length=20,
+        choices=LESSON_TYPES,
+        default='lecture'
+    )
+
+    status = models.CharField(
         max_length=10,
         choices=STATUS_CHOICES,
         default='pending'
     )
-    comment     = models.TextField(blank=True)     # teacher's own note
-    dekan_note  = models.TextField(blank=True)     # dekan's feedback comment
+
+    comment     = models.TextField(blank=True)
+    dekan_note  = models.TextField(blank=True)
 
     # Audit fields
-    filled_at   = models.DateTimeField(null=True, blank=True)
+    filled_at    = models.DateTimeField(null=True, blank=True)
     confirmed_at = models.DateTimeField(null=True, blank=True)
-    created_at  = models.DateTimeField(auto_now_add=True)
-    updated_at  = models.DateTimeField(auto_now=True)
+    created_at   = models.DateTimeField(auto_now_add=True)
+    updated_at   = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['date', 'slot_number']
@@ -50,7 +65,7 @@ class ActualTimetable(models.Model):
     def __str__(self):
         return (
             f"{self.teacher} | {self.date} | "
-            f"Slot {self.slot_number} | {self.status}"
+            f"Slot {self.slot_number} | {self.status} ({self.lesson_type})"
         )
 
     def mark_filled(self):

@@ -1,0 +1,28 @@
+{% extends "timetable/admin/base_admin.html" %}
+
+{% block page_title %}Red Days{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <h2>Red Days (Holidays)</h2>
+    <a class="btn btn-primary" href="/admin-panel/red-days/create/">+ Add Red Day</a>
+</div>
+
+<div class="card">
+<table class="table">
+    <tr>
+        <th>Date</th>
+        <th>Reason</th>
+    </tr>
+
+    {% for d in red_days %}
+    <tr>
+        <td>{{ d.date }}</td>
+        <td>{{ d.reason }}</td>
+    </tr>
+    {% endfor %}
+</table>
+</div>
+
+{% endblock %}

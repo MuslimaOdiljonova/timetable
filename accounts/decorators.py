@@ -2,6 +2,12 @@ from functools import wraps
 from django.shortcuts import redirect
 from django.core.exceptions import PermissionDenied
 
+def admin_required(view_func):
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated or not request.user.is_admin():
+            return redirect('login')
+        return view_func(request, *args, **kwargs)
+    return wrapper
 def role_required(*roles):
     """
     Usage:

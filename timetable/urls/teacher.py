@@ -27,9 +27,9 @@ urlpatterns = [
 
     # AJAX: Darsni tahrirlash (Blue Line)
     path(
-        'lesson/edit/<int:default_id>/<str:date_str>/',
+        "teacher/edit/<int:default_id>/<str:date_str>/",
         LessonEditView.as_view(),
-        name='lesson_edit'
+        name="teacher_edit"
     ),
 
     # AJAX: Butun haftani tasdiqlash
@@ -45,6 +45,11 @@ urlpatterns = [
         FinalizeMonthlyReportView.as_view(),
         name='report_finalize'
     ),
+path(
+    "edit/<int:default_id>/<str:date_str>/",
+    LessonEditView.as_view(),
+    name="lesson_edit"
+),
 
     # # Hisobotlar ro'yxati va detali
     # path(

@@ -78,10 +78,11 @@ WSGI_APPLICATION = 'timetable_pro.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'timetable',
-        'HOST': "localhost", 
-        'USER': "root", 
-        'PASSWORD': "0000", 
+        'NAME': 'new_timetable',
+        'USER': "root",
+        'PASSWORD': "Yournewpassword123!",
+        'HOST': "localhost",
+        'PORT': 3307
     }
 }
 

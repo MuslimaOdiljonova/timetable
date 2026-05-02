@@ -1,0 +1,45 @@
+{% extends "timetable/admin/base_admin.html" %}
+<h2>Lesson Slots</h2>
+
+<table border="1" width="60%">
+<tr>
+    <th>Number</th>
+    <th>Start</th>
+    <th>End</th>
+    <th>Action</th>
+</tr>
+
+{% for slot in slots %}
+<tr>
+    <td>{{ slot.number }}</td>
+    <td>{{ slot.start_time }}</td>
+    <td>{{ slot.end_time }}</td>
+    <td>
+        <button onclick="editSlot({{ slot.id }}, '{{ slot.start_time }}', '{{ slot.end_time }}')">
+            Edit
+        </button>
+    </td>
+</tr>
+{% endfor %}
+</table>
+
+<div id="editor" style="display:none;">
+    <form id="slotForm">
+        {% csrf_token %}
+        <input type="hidden" id="slot_id" name="slot_id">
+
+        <input type="time" name="start_time" id="start_time">
+        <input type="time" name="end_time" id="end_time">
+
+        <button type="submit">Save</button>
+    </form>
+</div>
+
+<script>
+function editSlot(id, start, end){
+    document.getElementById("editor").style.display = "block";
+    document.getElementById("slot_id").value = id;
+    document.getElementById("start_time").value = start;
+    document.getElementById("end_time").value = end;
+}
+</script>

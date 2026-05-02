@@ -1,0 +1,52 @@
+{% extends "timetable/admin/base_admin.html" %}
+
+{% block page_title %}Create Teacher{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <h2>Create New Teacher</h2>
+    <p style="color:#6b7280;">Fill in teacher details carefully</p>
+</div>
+
+<div class="card">
+
+<form method="post">
+    {% csrf_token %}
+
+    <label>Full Name</label>
+    <input type="text" name="full_name" placeholder="Enter full name"
+           style="width:100%;padding:10px;margin-bottom:10px;">
+
+    <label>Email</label>
+    <input type="email" name="email" placeholder="Enter email"
+           style="width:100%;padding:10px;margin-bottom:10px;">
+
+    <label>Department</label>
+    <select name="department"
+            style="width:100%;padding:10px;margin-bottom:10px;">
+        {% for d in departments %}
+            <option value="{{ d.id }}">{{ d.name }}</option>
+        {% endfor %}
+    </select>
+
+    <label>Password</label>
+    <input type="password" name="password"
+           style="width:100%;padding:10px;margin-bottom:10px;">
+
+    <label>Role</label>
+    <select name="role"
+            style="width:100%;padding:10px;margin-bottom:10px;">
+        <option value="teacher">Teacher</option>
+        <option value="dean">Dean</option>
+    </select>
+
+    <button class="btn btn-primary" type="submit">
+        Create Teacher
+    </button>
+
+</form>
+
+</div>
+
+{% endblock %}

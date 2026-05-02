@@ -1,0 +1,20 @@
+{% extends "timetable/admin/base_admin.html" %}
+
+{% block page_title %}
+MU Admin Dashboard
+{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <h2>Welcome to MU Admin Panel</h2>
+    <p>Select a module from sidebar.</p>
+</div>
+
+<div class="card">
+    <h3>Quick Access</h3>
+    <a class="btn btn-primary" href="/admin-panel/departments/">Departments</a>
+    <a class="btn btn-primary" href="/admin-panel/red-days/">Red Days</a>
+</div>
+
+{% endblock %}

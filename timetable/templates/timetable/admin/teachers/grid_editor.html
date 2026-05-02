@@ -1,206 +1,259 @@
-{% extends 'timetable/admin/base_admin.html' %}
+{% extends "timetable/admin/base_admin.html" %}
 {% load timetable_extras %}
 
 {% block content %}
 
-<h2>{{ teacher.get_full_name }} — Timetable</h2>
+<!-- HEADER -->
+
+<div style="text-align:center; margin:25px 0;">
+    <h1 style="font-size:36px; font-weight:700; color:#2c3e50;">
+        {{ teacher.get_full_name }}
+    </h1>
+    <div style="color:#1abc9c; font-size:14px;">
+        Timetable Management System
+    </div>
+</div>
 
 <style>
 table.grid {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
     background: #fff;
 }
 
 table.grid th, table.grid td {
-    border: 1px solid #ddd;
-    height: 80px;
+    border: 1px solid #e0e6ed;
     text-align: center;
     vertical-align: middle;
-    cursor: pointer;
-    position: relative;
 }
 
 table.grid th {
-    background: #f5f5f5;
-    font-size: 12px;
+    background: #2c3e50;
+    color: white;
+    font-size: 13px;
+    padding: 8px;
+    cursor: pointer;
+}
+
+table.grid td {
+    height: 100px;
+    cursor: pointer;
 }
 
 .lesson {
-    background: #d9ecff;
-    padding: 5px;
+    background: rgba(26,188,156,0.2);
+    padding: 6px;
     border-radius: 6px;
     font-size: 12px;
 }
 
 .empty {
-    color: #aaa;
-    font-size: 18px;
+    font-size: 22px;
+    color: #ccc;
 }
 
-/* editor */
-#editor {
-    position: fixed;
-    right: 20px;
-    top: 100px;
-    width: 300px;
-    background: white;
-    border: 1px solid #ccc;
-    padding: 15px;
-    display: none;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+#editor, #slotEditor {
+    display:none;
+    position:fixed;
+    top:100px;
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    box-shadow:0 10px 20px rgba(0,0,0,0.2);
 }
-#editor input, #editor select {
-    width: 100%;
-    margin-bottom: 10px;
-    padding: 6px;
+
+#editor { right:20px; width:300px; }
+#slotEditor { left:20px; width:260px; }
+
+input, select {
+    width:100%;
+    margin-bottom:8px;
+    padding:6px;
 }
 </style>
 
 <table class="grid">
-    <tr>
-        <th>Slot</th>
-        {% for day in days %}
-            <th>{{ day.1 }}</th>
-        {% endfor %}
-    </tr>
 
+<tr>
+    <th>Day / Slot</th>
     {% for slot in slots %}
-    <tr>
-        <th>
-            {{ slot.number }}<br>
-            <small>{{ slot.start_time }} - {{ slot.end_time }}</small>
-        </th>
-
-        {% for day in days %}
-
-            {% with cell=grid|get_item:day.0|get_item:slot.number %}
-
-            <td onclick="openEditor({{ day.0 }}, {{ slot.number }},
-                {% if cell %}
-                {
-                    id: {{ cell.id }},
-                    subject: '{{ cell.subject|escapejs }}',
-                    room: '{{ cell.room|escapejs }}',
-                    group: '{{ cell.group|escapejs }}',
-                    lesson_type: '{{ cell.lesson_type|default:"lecture" }}',
-                    time_slot: '{{ cell.time_slot|escapejs }}'
-                }
-                {% else %}
-                null
-                {% endif %}
-            )">
-
-                {% if cell %}
-                    <div class="lesson">
-                        <b>{{ cell.subject }}</b><br>
-                        {{ cell.room }}<br>
-                        {{ cell.group }}
-                    </div>
-                {% else %}
-                    <div class="empty">+</div>
-                {% endif %}
-
-            </td>
-
-            {% endwith %}
-
-        {% endfor %}
-    </tr>
+    <th onclick="openSlotEditor({{ slot.id }}, '{{ slot.start_time }}', '{{ slot.end_time }}')">
+        {{ slot.number }}<br>
+        <small>{{ slot.start_time }} - {{ slot.end_time }}</small>
+    </th>
     {% endfor %}
+</tr>
+
+{% for day in days %}
+
+<tr>
+
+```
+<th>{{ day.1 }}</th>
+
+{% for slot in slots %}
+
+<td onclick="openEditor(
+    {{ day.0 }},
+    {{ slot.number }},
+    {% if grid|get_item:day.0 and grid|get_item:day.0|get_item:slot.number %}
+    {
+        id: {{ grid|get_item:day.0|get_item:slot.number|get_item:"id" }},
+        subject: '{{ grid|get_item:day.0|get_item:slot.number|get_item:"subject"|escapejs }}',
+        room: '{{ grid|get_item:day.0|get_item:slot.number|get_item:"room"|escapejs }}',
+        group: '{{ grid|get_item:day.0|get_item:slot.number|get_item:"group"|escapejs }}',
+        lesson_type: '{{ grid|get_item:day.0|get_item:slot.number|get_item:"lesson_type"|escapejs }}'
+    }
+    {% else %}
+    null
+    {% endif %}
+)">
+
+    {% if grid|get_item:day.0 and grid|get_item:day.0|get_item:slot.number %}
+        <div class="lesson">
+            <b>{{ grid|get_item:day.0|get_item:slot.number|get_item:"subject" }}</b><br>
+            {{ grid|get_item:day.0|get_item:slot.number|get_item:"room" }}<br>
+            {{ grid|get_item:day.0|get_item:slot.number|get_item:"group" }}
+        </div>
+    {% else %}
+        <div class="empty">+</div>
+    {% endif %}
+
+</td>
+
+{% endfor %}
+```
+
+</tr>
+{% endfor %}
+
 </table>
 
-<!-- EDITOR PANEL -->
-<div id="editor">
-    <h4>Lesson Editor</h4>
+<!-- LESSON EDITOR -->
 
+<div id="editor">
+    <h4>Lesson</h4>
     <form id="lessonForm">
+        {% csrf_token %}
         <input type="hidden" name="lesson_id" id="lesson_id">
         <input type="hidden" name="day" id="day">
         <input type="hidden" name="slot" id="slot">
 
-        <input type="text" name="subject" placeholder="Subject">
-        <input type="text" name="room" placeholder="Room">
-        <input type="text" name="group" placeholder="Group">
-        <input type="text" name="time_slot" placeholder="Time (08:00-09:30)">
+```
+    <input type="text" name="subject" placeholder="Subject">
+    <input type="text" name="room" placeholder="Room">
+    <input type="text" name="group" placeholder="Group">
 
-        <select name="lesson_type">
-            <option value="lecture">Lecture</option>
-            <option value="lab">Lab</option>
-            <option value="seminar">Seminar</option>
-        </select>
+    <select name="lesson_type">
+        <option value="lecture">Lecture</option>
+        <option value="lab">Lab</option>
+        <option value="seminar">Seminar</option>
+    </select>
 
-        <button type="submit">Save</button>
-        <button type="button" onclick="deleteLesson()">Delete</button>
-        <button type="button" onclick="closeEditor()">Close</button>
-    </form>
+    <button type="submit">Save</button>
+    <button type="button" onclick="deleteLesson()">Delete</button>
+    <button type="button" onclick="closeEditor()">Close</button>
+</form>
+```
+
+</div>
+
+<!-- SLOT EDITOR -->
+
+<div id="slotEditor">
+    <h4>Edit Slot</h4>
+    <form id="slotForm">
+        {% csrf_token %}
+        <input type="hidden" id="slot_id" name="slot_id">
+
+```
+    <input type="text" id="start_time" name="start_time">
+    <input type="text" id="end_time" name="end_time">
+
+    <button type="submit">Save</button>
+    <button type="button" onclick="closeSlotEditor()">Close</button>
+</form>
+```
+
 </div>
 
 <script>
-function openEditor(day, slot, lesson) {
-    document.getElementById("editor").style.display = "block";
+document.addEventListener("DOMContentLoaded", function(){
 
-    document.getElementById("day").value = day;
-    document.getElementById("slot").value = slot;
+    const teacherId = "{{ teacher.id }}";
+    const baseUrl = `/admin-panel/timetable/grid/${teacherId}/`;
 
-    if (lesson) {
-        document.getElementById("lesson_id").value = lesson.id;
-        document.querySelector("[name='subject']").value = lesson.subject || "";
-        document.querySelector("[name='room']").value = lesson.room || "";
-        document.querySelector("[name='group']").value = lesson.group || "";
-        document.querySelector("[name='time_slot']").value = lesson.time_slot || "";
-        document.querySelector("[name='lesson_type']").value = lesson.lesson_type || "lecture";
-    } else {
-        document.getElementById("lesson_id").value = "";
-        document.querySelector("[name='subject']").value = "";
-        document.querySelector("[name='room']").value = "";
-        document.querySelector("[name='group']").value = "";
-        document.querySelector("[name='time_slot']").value = "";
-        document.querySelector("[name='lesson_type']").value = "lecture";
+    window.openEditor = function(day, slot, lesson){
+        document.getElementById("editor").style.display = "block";
+        document.getElementById("day").value = day;
+        document.getElementById("slot").value = slot;
+
+        if(lesson){
+            document.getElementById("lesson_id").value = lesson.id;
+            document.querySelector("[name='subject']").value = lesson.subject || "";
+            document.querySelector("[name='room']").value = lesson.room || "";
+            document.querySelector("[name='group']").value = lesson.group || "";
+            document.querySelector("[name='lesson_type']").value = lesson.lesson_type || "lecture";
+        } else {
+            document.getElementById("lesson_id").value = "";
+        }
     }
-}
 
-function closeEditor() {
-    document.getElementById("editor").style.display = "none";
-}
+    window.closeEditor = function(){
+        document.getElementById("editor").style.display = "none";
+    }
 
-document.getElementById("lessonForm").addEventListener("submit", function(e) {
-    e.preventDefault();
+    window.openSlotEditor = function(id, start, end){
+        document.getElementById("slotEditor").style.display = "block";
+        document.getElementById("slot_id").value = id;
+        document.getElementById("start_time").value = start;
+        document.getElementById("end_time").value = end;
+    }
 
-    let formData = new FormData(this);
+    window.closeSlotEditor = function(){
+        document.getElementById("slotEditor").style.display = "none";
+    }
 
-    fetch(window.location.pathname + "save/", {
-        method: "POST",
-        body: formData,
-        headers: {
-            "X-CSRFToken": "{{ csrf_token }}"
-        }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        }
+    window.deleteLesson = function(){
+        let formData = new FormData(document.getElementById("lessonForm"));
+
+        fetch(baseUrl + "delete/", {
+            method:"POST",
+            body:formData,
+            headers:{"X-CSRFToken":"{{ csrf_token }}"}
+        }).then(r=>r.json()).then(d=>{
+            if(d.success) location.reload();
+        });
+    }
+
+    document.getElementById("lessonForm").addEventListener("submit", function(e){
+        e.preventDefault();
+
+        fetch(baseUrl + "save/", {
+            method:"POST",
+            body:new FormData(this),
+            headers:{"X-CSRFToken":"{{ csrf_token }}"}
+        }).then(r=>r.json()).then(d=>{
+            if(d.success) location.reload();
+        });
     });
+
+    document.getElementById("slotForm").addEventListener("submit", function(e){
+        e.preventDefault();
+
+        let id = document.getElementById("slot_id").value;
+
+        fetch(`/admin-panel/teachers/slots/${id}/update/`, {
+            method:"POST",
+            body:new FormData(this),
+            headers:{"X-CSRFToken":"{{ csrf_token }}"}
+        }).then(r=>r.json()).then(d=>{
+            if(d.success) location.reload();
+        });
+    });
+
 });
-
-function deleteLesson() {
-    let formData = new FormData(document.getElementById("lessonForm"));
-
-    fetch(window.location.pathname + "delete/", {
-        method: "POST",
-        body: formData,
-        headers: {
-            "X-CSRFToken": "{{ csrf_token }}"
-        }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        }
-    });
-}
 </script>
 
 {% endblock %}

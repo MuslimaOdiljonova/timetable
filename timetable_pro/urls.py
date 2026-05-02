@@ -24,6 +24,6 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),
     path('dekan/', include(dekan)),
     path('teacher/', include(teacher)),
-
+path('admin-panel/', include('timetable.urls.admin')),
 
 ]

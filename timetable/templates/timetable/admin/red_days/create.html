@@ -1,0 +1,22 @@
+{% extends "timetable/admin/base_admin.html" %}
+
+{% block page_title %}Create Red Day{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+
+        <input type="date" name="date" style="width:100%;padding:8px;">
+        <br><br>
+
+        <input type="text" name="reason" placeholder="Reason"
+               style="width:100%;padding:8px;">
+        <br><br>
+
+        <button class="btn btn-primary">Save</button>
+    </form>
+</div>
+
+{% endblock %}

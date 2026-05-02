@@ -1,0 +1,35 @@
+{% extends "timetable/admin/base_admin.html" %}
+
+{% block page_title %}Departments{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <h2>Departments</h2>
+    <a class="btn btn-primary" href="/admin-panel/departments/create/">+ Add Department</a>
+</div>
+
+<div class="card">
+<table class="table">
+    <tr>
+        <th>Name</th>
+        <th>Actions</th>
+    </tr>
+
+    {% for d in departments %}
+    <tr>
+        <td>{{ d.name }}</td>
+        <td>
+            <a class="btn btn-primary" href="/admin-panel/departments/{{ d.id }}/">View</a>
+            <a class="btn btn-danger"
+               href="/admin-panel/departments/delete/{{ d.id }}/"
+               onclick="return confirm('Delete this department?')">
+                Delete
+            </a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+</div>
+
+{% endblock %}

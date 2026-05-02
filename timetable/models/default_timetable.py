@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 
+
 class DefaultTimetable(models.Model):
     DAY_CHOICES = [
         (0, 'Monday'),
@@ -11,6 +12,12 @@ class DefaultTimetable(models.Model):
         (5, 'Saturday'),
     ]
 
+    LESSON_TYPES = [
+        ('lecture', 'Lecture'),
+        ('seminar', 'Seminar'),
+        ('lab', 'Lab'),
+    ]
+
     teacher = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -18,11 +25,19 @@ class DefaultTimetable(models.Model):
         limit_choices_to={'role': 'teacher'}
     )
     day_of_week = models.IntegerField(choices=DAY_CHOICES)
-    time_slot   = models.CharField(max_length=20)   # e.g. "08:00-09:30"
-    slot_number = models.PositiveSmallIntegerField() # e.g. 1, 2, 3 (lesson number)
+    time_slot   = models.CharField(max_length=20)
+    slot_number = models.PositiveSmallIntegerField()
     subject     = models.CharField(max_length=200)
     room        = models.CharField(max_length=50, blank=True)
-    group       = models.CharField(max_length=100, blank=True)  # student group
+    group       = models.CharField(max_length=100, blank=True)
+
+    # ✅ ADD THIS FIELD HERE
+    lesson_type = models.CharField(
+        max_length=20,
+        choices=LESSON_TYPES,
+        default='lecture'
+    )
+
     is_active   = models.BooleanField(default=True)
 
     class Meta:
@@ -33,5 +48,5 @@ class DefaultTimetable(models.Model):
         return (
             f"{self.teacher} | "
             f"{self.get_day_of_week_display()} | "
-            f"Slot {self.slot_number} | {self.subject}"
+            f"Slot {self.slot_number} | {self.subject} ({self.lesson_type})"
         )
